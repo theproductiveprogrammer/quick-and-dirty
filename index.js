@@ -1,11 +1,13 @@
 'use strict'
 const fs = require('fs')
 const path = require('path')
+const proc = require('child_process')
 
 const http = require('http')
 const url = require('url')
 
 const livereload = require('livereload')
+const chokidar = require('chokidar')
 
 const cfg = require('./config.json')
 
@@ -68,7 +70,7 @@ http.createServer((req, res) => {
           let ext = path.parse(loc).ext
           let mime_type = mimeType[ext]
           if(mime_type) res.setHeader('Content-type', mime_type)
-          if(cfg.livereload && isHTML(ext)) {
+          if(isLive() && isHTML(ext)) {
             send_with_live_reloading_1(data, res)
           } else {
             res.end(data)
@@ -81,6 +83,31 @@ http.createServer((req, res) => {
 }).listen(parseInt(PORT))
 
 function isHTML(ext) { return ext == '.html' || ext == '.htm' }
+function isLive() { return cfg.livereload || isRegen() }
+function isRegen() { return cfg.regenerate && cfg.regenerate.watch }
+
+function regenCmd() {
+  if(cfg.regenerate.script) {
+    return cfg.regenerate.script.split(' ')[0]
+  }
+  else return "node"
+}
+function regenArgs() {
+  if(cfg.regenerate.script) {
+    let r = cfg.regenerate.script.split(' ')
+    r.shift()
+    return r
+  } else return ['.']
+}
+function regenWatch() {
+  return path.join(__dirname, cfg.regenerate.watch)
+}
+function regenCwd() {
+  let f = regenWatch()
+  let stat = fs.lstatSync(f)
+  if(stat.isFile()) return path.basename(f)
+  else return f
+}
 
 function send_with_live_reloading_1(data, res) {
   let ndx = data.lastIndexOf('</body>')
@@ -101,8 +128,51 @@ let server = livereload.createServer({
 })
 server.watch(path.join(__dirname, ROOT))
 
-if(cfg.livereload) {
+if(isRegen()) {
+  chokidar.watch(regenWatch(), {
+    ignored: [/(^|[\/\\])\../,/^node_modules/],
+  }).on('all', doUpdate)
+}
+
+/*    outcome/
+ * Wait a little bit to batch changes then launch the update process.
+ * After it's done, check to see if there are more changes to be handled
+ * and run again if there are.
+ */
+let numchanges = 0
+let updateRunning = false
+function doUpdate(event, path) {
+  console.log(`Detected ${event} in ${path}..`)
+  numchanges++
+  if(updateRunning) return
+  do_update_1()
+
+  function do_update_1() {
+    updateRunning = true
+    setTimeout(() => {
+      let curr_changes = numchanges
+      console.log('Running update...')
+      let proc_ = proc.spawn(regenCmd(), regenArgs(), {
+        cwd: regenCwd(),
+        stdio: 'inherit',
+        windowsHide: true,
+      })
+      proc_.on('exit', (code) => {
+        if(code) console.error('Update exited with error!')
+        else console.log('Update done.')
+        if(curr_changes != numchanges) do_update_1()
+        updateRunning = false
+      })
+    }, 500)
+  }
+}
+
+
+if(isRegen()) {
   console.log(`Serving ${ROOT} from port ${PORT} (with live-reloading)`)
+  console.log(`Generated from ${cfg.regenerate.watch} using ${regenCmd()}`)
+} else if(isLive()) {
+  console.log(`Serving ${ROOT} from port ${PORT} (with live-reloading, regeneration: off)`)
 } else {
-  console.log(`Serving ${ROOT} from port ${PORT} (live-reloading: off)`)
+  console.log(`Serving ${ROOT} from port ${PORT} (live-reloading:off, regeneration: off)`)
 }

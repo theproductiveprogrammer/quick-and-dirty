@@ -1,0 +1,8 @@
+{
+  "port": 6543,
+  "site": "../path/to/website/to/serve",
+  "regenerate": {
+    "watch": [ "../path/to/site/generator/", ... ],
+    "script": "command to run to regenerate site"
+  }
+}

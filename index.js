@@ -9,6 +9,11 @@ const url = require('url')
 const livereload = require('livereload')
 const chokidar = require('chokidar')
 
+if(!fs.existsSync('./config.json')) {
+  console.log(`Please create a "config.json" to configure the server.
+(You can use the existing config-sample.json as a reference)`)
+  process.exit()
+}
 const cfg = require('./config.json')
 
 const DEFAULT_PORT = 6543

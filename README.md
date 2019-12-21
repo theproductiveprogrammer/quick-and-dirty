@@ -9,7 +9,7 @@ This is a simple development server that can be used to have a live-preview of y
 ## Usage
 
 1. Download this package
-2. Set up your configuration by editing the existing [config.json](./config.json)
+2. Set up your configuration by creating a [config.json](./config-sample.json)
 3. Start the server: `npm start`
 
 Now the server will detect changes as you save, regenerate the site if needed, and automatically cause the browser to refresh the page.

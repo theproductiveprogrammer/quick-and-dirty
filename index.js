@@ -5,6 +5,8 @@ const path = require('path')
 const http = require('http')
 const url = require('url')
 
+const livereload = require('livereload')
+
 const cfg = require('./config.json')
 
 const DEFAULT_PORT = 6543
@@ -66,7 +68,11 @@ http.createServer((req, res) => {
           let ext = path.parse(loc).ext
           let mime_type = mimeType[ext]
           if(mime_type) res.setHeader('Content-type', mime_type)
-          res.end(data)
+          if(cfg.livereload && isHTML(ext)) {
+            send_with_live_reloading_1(data, res)
+          } else {
+            res.end(data)
+          }
         }
       })
     }
@@ -74,4 +80,29 @@ http.createServer((req, res) => {
 
 }).listen(parseInt(PORT))
 
-console.log(`Serving ${ROOT} from port ${PORT}`)
+function isHTML(ext) { return ext == '.html' || ext == '.htm' }
+
+function send_with_live_reloading_1(data, res) {
+  let ndx = data.lastIndexOf('</body>')
+  if(ndx == -1) res.end(data)
+  else {
+    res.write(data.slice(0, ndx))
+    res.write(`<script>
+  document.write('<script src="http://' + (location.host || 'localhost').split(':')[0] +
+  ':35729/livereload.js?snipver=1"></' + 'script>')
+</script>`)
+    res.write(data.slice(ndx))
+    res.end()
+  }
+}
+
+let server = livereload.createServer({
+  delay: 250,
+})
+server.watch(path.join(__dirname, ROOT))
+
+if(cfg.livereload) {
+  console.log(`Serving ${ROOT} from port ${PORT} (with live-reloading)`)
+} else {
+  console.log(`Serving ${ROOT} from port ${PORT} (live-reloading: off)`)
+}

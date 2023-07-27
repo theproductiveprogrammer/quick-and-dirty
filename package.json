@@ -24,6 +24,6 @@
   "homepage": "http://theproductiveprogrammer.github.io/quick-and-dirty/",
   "dependencies": {
     "chokidar": "^3.3.1",
-    "livereload": "^0.8.2"
+    "livereload": "^0.9.3"
   }
 }
